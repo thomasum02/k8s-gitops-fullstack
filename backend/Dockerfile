@@ -1,15 +1,15 @@
-#stage1 - building
+#stage-1-build
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+RUN npm ci && npm cache clean --force
 COPY src/ ./src/
 
-#stage2 - production ready
+#stage-2-prod
 FROM node:20-alpine
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=builder /app/src ./src/
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001

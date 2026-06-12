@@ -10,6 +10,9 @@ RUN npm run build
 
 #stage2 nginx
 FROM nginx:alpine
+LABEL maintainer="thomas"
+LABEL version="2.1.0"
+LABEL description="Todo App - Frontend React"
 COPY --from=builder --chown=nginx:nginx /app/build/ /usr/share/nginx/html/
 COPY --chown=nginx:nginx nginx.conf /etc/nginx/conf.d/default.conf
 RUN touch /var/run/nginx.pid && \

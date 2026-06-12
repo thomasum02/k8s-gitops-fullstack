@@ -1,16 +1,25 @@
-#stage-1-build
-FROM node:20-alpine AS builder
+# stage-1-build
+FROM node:20.19-alpine3.22 AS builder
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci && npm cache clean --force
+RUN apk update && apk upgrade --no-cache && \
+    npm ci && npm cache clean --force && rm -rf /root/.npm
 COPY src/ ./src/
 
-#stage-2-prod
-FROM node:20-alpine
+# stage-2-prod
+FROM node:20.19-alpine3.22
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+RUN apk update && apk upgrade --no-cache && \
+    rm -rf /usr/local/lib/node_modules/npm \
+           /usr/local/lib/node_modules/corepack \
+           /usr/local/bin/npm \
+           /usr/local/bin/npx \
+           /usr/local/bin/corepack \
+           /opt/yarn* && \
+    rm -rf /tmp/* /var/cache/apk/*
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/src ./src/
+COPY --from=builder /app/package.json ./
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 USER nodejs

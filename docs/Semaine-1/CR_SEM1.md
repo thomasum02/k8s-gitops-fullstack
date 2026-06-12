@@ -232,13 +232,6 @@ server {
 - npm cache clean : réduit la taille de l’image build.
 - COPY build vers Nginx : ne garde que les fichiers statiques.
 
-## 4. Récapitulatif des images Docker
-
-| Image | Tag | Taille | Optimisations |
-|---|---|---|---|
-| todo-backend | v2 | 207MB | Alpine, multi-stage, non-root, healthcheck |
-| todo-frontend | v2 | 93.5MB | Alpine, multi-stage, Nginx, gzip |
-
 ### Commandes de build
 ```bash
 # Backend
@@ -266,7 +259,7 @@ curl http://localhost:8888
 
 ---
 
-## 5. Sécurisation des images
+## 4. Fichiers .dockerignore
 
 ### .dockerignore Backend
 ```
@@ -290,14 +283,7 @@ build/
 .git/
 ```
 
-### 5.2 Bonnes pratiques appliquées
-- Images Alpine uniquement (surface d'attaque minimale)
-- User non-root dans le container backend (`nodejs:1001`)
-- Pas de secrets dans les images
-- Healthcheck configuré pour Kubernetes
-- `readOnlyRootFilesystem` préparé pour les manifests K8s
-
-### 5.3 Outils de sécurisation utilisés
+### 5. Hardening des images
 
 Trois outils ont été utilisés pour analyser et valider la sécurité des Dockerfiles et des images.
 

@@ -4,6 +4,8 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci && npm cache clean --force && rm -rf /root/.npm
 COPY . .
+ARG REACT_APP_API_URL=http://localhost:3001
+ENV REACT_APP_API_URL=$REACT_APP_API_URL
 RUN npm run build
 
 #stage2 nginx

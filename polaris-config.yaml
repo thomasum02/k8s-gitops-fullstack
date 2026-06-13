@@ -1,0 +1,32 @@
+checks:
+  # Security
+  hostIPCSet: danger
+  hostPIDSet: danger
+  hostNetworkSet: danger
+  hostPortSet: warning
+  hostPathSet: danger
+  runAsRootAllowed: danger
+  runAsPrivileged: danger
+  notReadOnlyRootFilesystem: warning
+  privilegeEscalationAllowed: danger
+  dangerousCapabilities: danger
+  insecureCapabilities: warning
+  livenessProbeMissing: warning
+  readinessProbeMissing: warning
+  tagNotSpecified: danger
+  pullPolicyNotAlways: warning
+  # Reliability
+  deploymentMissingReplicas: warning
+  missingPodDisruptionBudget: ignore
+  # Efficiency
+  cpuRequestsMissing: warning
+  cpuLimitsMissing: warning
+  memoryRequestsMissing: warning
+  memoryLimitsMissing: warning
+
+exemptions:
+  - controllerNames:
+    - helm-kube-system-traefik
+    - helm-kube-system-traefik-crd
+    rules:
+    - clusterroleBroadRules

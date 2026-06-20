@@ -8,6 +8,7 @@ stages:
 
 variables:
   SECRET_DETECTION_ENABLED: 'true'
+  SAST_EXCLUDED_PATHS: "node_modules, dist, build, fichiersMD, coverage"
 
 include:
 - template: Security/SAST.gitlab-ci.yml
@@ -16,9 +17,13 @@ include:
 test-backend:
   stage: test
   image: node:20-alpine
+  cache:
+    key: backend-deps
+    paths:
+      - backend/node_modules/
   script:
     - cd backend
-    - npm ci
+    - npm ci --prefer-offline --no-audit --no-fund
     - npm test
 
 sast:

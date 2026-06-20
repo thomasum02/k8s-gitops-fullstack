@@ -57,3 +57,15 @@ build-frontend:
   script:
     - docker build -t $CI_REGISTRY_IMAGE/todo-frontend:$CI_COMMIT_SHORT_SHA ./frontend
     - docker push $CI_REGISTRY_IMAGE/todo-frontend:$CI_COMMIT_SHORT_SHA
+
+deploy:
+  stage: deploy
+  tags:
+    - K8S_runner
+  script:
+    - kubectl set image deployment/todo-backend todo-backend=$CI_REGISTRY_IMAGE/todo-backend:$CI_COMMIT_SHORT_SHA -n todo-app
+    - kubectl set image deployment/todo-frontend todo-frontend=$CI_REGISTRY_IMAGE/todo-frontend:$CI_COMMIT_SHORT_SHA -n todo-app
+    - kubectl rollout status deployment/todo-backend -n todo-app
+    - kubectl rollout status deployment/todo-frontend -n todo-app
+  only:
+    - thomas

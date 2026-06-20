@@ -59,7 +59,12 @@ build-frontend:
     - docker push $CI_REGISTRY_IMAGE/todo-frontend:$CI_COMMIT_SHORT_SHA
 
 deploy:
-  stage: deploy
+  stage : deploy
+  image : bitnami/kubectl:latest
+  
+  before_script:
+    - echo "$KUBE_CONFIG" | base64 -d > /tmp/kubeconfig
+    - export KUBECONFIG=/tmp/kubeconfig
   tags:
     - K8S_runner
   script:

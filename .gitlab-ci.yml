@@ -65,8 +65,6 @@ deploy:
   before_script:
     - echo "$KUBE_CONFIG" | base64 -d > /tmp/kubeconfig
     - export KUBECONFIG=/tmp/kubeconfig
-  tags:
-    - K8S_runner
   script:
     - kubectl set image deployment/todo-backend todo-backend=$CI_REGISTRY_IMAGE/todo-backend:$CI_COMMIT_SHORT_SHA -n todo-app
     - kubectl set image deployment/todo-frontend todo-frontend=$CI_REGISTRY_IMAGE/todo-frontend:$CI_COMMIT_SHORT_SHA -n todo-app

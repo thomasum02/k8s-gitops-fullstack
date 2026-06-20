@@ -32,7 +32,7 @@ sast:
 secret_detection:
   stage: secret-detection
 
-  build-backend:
+build-backend:
   stage: build
   image: docker:24
   services:

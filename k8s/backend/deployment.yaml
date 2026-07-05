@@ -23,6 +23,8 @@ spec:
         app.kubernetes.io/instance: todo-backend
     spec:
       automountServiceAccountToken: false
+      imagePullSecrets:
+      - name: gitlab-registry-cred
       securityContext:
         runAsNonRoot: true
         runAsUser: 1001

@@ -60,8 +60,10 @@ build-frontend:
 
 deploy:
   stage : deploy
-  image : bitnami/kubectl:latest
-  
+  image:
+    name: bitnami/kubectl:latest
+    entrypoint: [""]
+
   before_script:
     - echo "$KUBE_CONFIG" | base64 -d > /tmp/kubeconfig
     - export KUBECONFIG=/tmp/kubeconfig

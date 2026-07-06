@@ -4,7 +4,6 @@ stages:
 - build
 - security
 - push
-- deploy
 
 variables:
   SECRET_DETECTION_ENABLED: 'true'
@@ -126,22 +125,5 @@ update-manifests:
     - 'sed -i -E "s#^(\s*)image: .*#\1image: ${CI_REGISTRY_IMAGE}/todo-frontend:${CI_COMMIT_SHORT_SHA}#" k8s/frontend/deployment.yaml'
     - git add k8s/backend/deployment.yaml k8s/frontend/deployment.yaml
     - 'git diff --cached --quiet && echo "Nothing to commit" || (git commit -m "chore(k8s): bump image tags to ${CI_COMMIT_SHORT_SHA} [skip ci]" && git push origin HEAD:${CI_COMMIT_REF_NAME})'
-  only:
-    - thomas
-
-deploy:
-  stage : deploy
-  image:
-    name: bitnami/kubectl:latest
-    entrypoint: [""]
-
-  before_script:
-    - echo "$KUBE_CONFIG" | base64 -d > /tmp/kubeconfig
-    - export KUBECONFIG=/tmp/kubeconfig
-  script:
-    - kubectl set image deployment/todo-backend todo-backend=$CI_REGISTRY_IMAGE/todo-backend:$CI_COMMIT_SHORT_SHA -n todo-app
-    - kubectl set image deployment/todo-frontend todo-frontend=$CI_REGISTRY_IMAGE/todo-frontend:$CI_COMMIT_SHORT_SHA -n todo-app
-    - kubectl rollout status deployment/todo-backend -n todo-app
-    - kubectl rollout status deployment/todo-frontend -n todo-app
   only:
     - thomas

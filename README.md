@@ -1,6 +1,15 @@
 # PJ_KUBERNETES
 
+## Accès aux services
 
+| Service | URL | Identifiants |
+|---|---|---|
+| Application Todo | http://todo-app.local | - |
+| ArgoCD | http://argocd-todo.local | admin / voir secret `argocd-initial-admin-secret` |
+| Grafana | http://grafana-todo.local | admin / voir variable `grafana.adminPassword` |
+| Polaris (dashboard) | http://polaris-todo.local | - |
+
+> Ces URLs nécessitent une entrée dans le fichier hosts local pointant vers une IP de nœud du cluster (ex: `10.160.2.90 todo-app.local`).
 
 ## Getting started
 

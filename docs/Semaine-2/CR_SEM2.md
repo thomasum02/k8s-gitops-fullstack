@@ -287,21 +287,6 @@ test → secret-detection → build → security → deploy
 | `dockle` | security | Audit CIS des images Docker |
 | `deploy` | deploy | Déploiement sur le cluster K3s (`kubectl set image`) |
 
-### Migration vers la registry self-hosted
-
-Le projet a été migré de `registry.gitlab.com` (GitLab.com) vers `gitlab.indio.lan:5050` (GitLab self-hosted). Les images existantes (v1 à v6) ont été recopiées manuellement vers le nouveau registre avec `docker pull` / `docker tag` / `docker push`.
-
-### Problèmes rencontrés et corrigés
-
-| Problème | Cause | Correction |
-|---|---|---|
-| `Forbidden` sur `kubectl set image` | Le ServiceAccount `gitlab-ci` n'avait pas de droits sur le namespace `todo-app` | Ajout d'un `Role` + `RoleBinding` dans `todo-app` |
-| `ImagePullBackOff` | Registry privée, pas de credentials sur le cluster | Création d'un `imagePullSecret` + référencement dans les deployments |
-| `no such host: gitlab.indio.lan` | DNS interne non résolu sur certains nœuds | Entrée `/etc/hosts` ajoutée sur les 5 nœuds |
-| `certificate signed by unknown authority` | Certificat interne (Vault PKI) non approuvé sur certains nœuds | Distribution du certificat CA (`gitlab-chain.crt`) + `update-ca-certificates` sur les 5 nœuds |
-| Bouton "Add" du frontend ne fonctionnait pas | URL du backend codée en dur (`REACT_APP_API_URL`), inatteignable depuis le navigateur | Passage à une URL relative (`/api/todos`), routée par l'Ingress |
-| CVE HIGH (`form-data`) détectée par Trivy sur l'image backend | Le Dockerfile installait aussi les devDependencies (jest, supertest...) dans l'image de prod | `npm ci --omit=dev` dans le Dockerfile backend |
-
 ### Résultat final
 
 Pipeline complet et vert (#156) :

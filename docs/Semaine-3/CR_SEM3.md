@@ -40,28 +40,7 @@ Le cluster K3s est partagé avec deux autres projets qui utilisent déjà une in
 
 ---
 
-## 2. Synchroniser le tag d'image entre CI et Git
-
-**Problème initial** : les manifests (`k8s/backend/deployment.yaml`, `k8s/frontend/deployment.yaml`) contenaient un tag figé (`v2`) depuis la semaine 1, alors que le déploiement réel se faisait via `kubectl set image` directement sur le cluster — sans jamais mettre à jour Git. Avec GitOps, Git est la seule source de vérité : ArgoCD aurait donc redéployé `v2` en permanence.
-
-**Solution** — nouveau job CI `update-manifests` (stage `push`) :
-```yaml
-update-manifests:
-  stage: push
-  image:
-    name: alpine/git:latest
-    entrypoint: [""]
-  script:
-    - sed -i -E "s#^(\s*)image: .*#\1image: ${CI_REGISTRY_IMAGE}/todo-backend:${CI_COMMIT_SHORT_SHA}#" k8s/backend/deployment.yaml
-    - sed -i -E "s#^(\s*)image: .*#\1image: ${CI_REGISTRY_IMAGE}/todo-frontend:${CI_COMMIT_SHORT_SHA}#" k8s/frontend/deployment.yaml
-    - git commit -m "chore(k8s): bump image tags to ${CI_COMMIT_SHORT_SHA} [skip ci]"
-    - git push origin HEAD:${CI_COMMIT_REF_NAME}
-```
-Après chaque build, le pipeline commite lui-même le vrai tag déployé dans les manifests (avec `[skip ci]` pour éviter une boucle de pipelines).
-
----
-
-## 3. Installation d'ArgoCD
+## 2. Installation d'ArgoCD
 
 ```bash
 kubectl create namespace argocd-todo
@@ -69,15 +48,6 @@ kubectl apply -n argocd-todo -f https://raw.githubusercontent.com/argoproj/argo-
 ```
 
 Dex (SSO) a été désactivé (`replicas: 0`) — pas besoin d'authentification externe pour ce projet, juste le login admin intégré.
-
-### Problèmes rencontrés
-
-| Problème | Cause | Correction |
-|---|---|---|
-| `serviceaccounts is forbidden` (Sync: Unknown) | Le manifeste officiel code en dur `namespace: argocd` dans les `ClusterRoleBinding`, alors qu'on installe dans `argocd-todo` — les ClusterRoleBindings restaient rattachés à l'instance partagée existante | Création de `ClusterRoleBinding` dédiés (`argocd-todo-*`) pointant vers les ServiceAccounts du bon namespace |
-| `no such host: gitlab.indio.lan` (dans les pods) | CoreDNS ne consulte pas le `/etc/hosts` des nœuds (fix déjà fait pour les nœuds eux-mêmes en semaine 2) | `hostAliases` ajouté directement sur le déploiement `argocd-repo-server`, isolé du reste du cluster |
-| `HTTP Basic: Access denied` | Erreur de copier-coller du token dans le secret de credentials | Recréation du secret avec le bon token (scope `read_repository`) |
-| `Problem with the SSL CA cert` | Certificat interne copié-collé via le chat avait probablement récupéré des caractères invisibles (retours chariot Windows) | Certificat recapturé directement sur le nœud via `openssl s_client`, sans repasser par un copier-coller externe |
 
 ### Application ArgoCD
 
@@ -110,19 +80,7 @@ spec:
 
 ---
 
-## 4. Retrait du déploiement imperatif
-
-Une fois ArgoCD opérationnel, le job `deploy` (`kubectl set image` + `rollout status`) a été retiré du pipeline — il ferait doublon avec ArgoCD et pourrait entrer en conflit avec le `selfHeal`.
-
-**Pipeline final** :
-```
-test → secret-detection → build → security → push (update-manifests)
-```
-Le déploiement n'est plus une étape du pipeline : il est géré en continu par ArgoCD, indépendamment du CI.
-
----
-
-## 5. Vérification de bout en bout
+## 3. Vérification de bout en bout
 
 ```bash
 kubectl get application -n argocd-todo
@@ -138,7 +96,7 @@ Le tag déployé correspond exactement au dernier commit du pipeline — confirm
 
 ---
 
-## 6. Accès web (Ingress, sans port-forward)
+## 4. Accès web (Ingress, sans port-forward)
 
 ### ArgoCD
 Le serveur a été passé en mode `insecure` (TLS géré par Traefik plutôt que le certificat auto-signé d'ArgoCD) :
@@ -191,8 +149,6 @@ spec:
               number: 80
 ```
 Accessible via `http://polaris-todo.local`.
-
-> **Note sur le score affiché** : ce dashboard audite **tout le cluster partagé** (13 namespaces, 31 contrôleurs — ArgoCD x2, cert-manager, Traefik, kube-system, la stack monitoring de la semaine 4, etc.), avec la config Polaris **par défaut** (sans exemptions). Le score global qui y apparaît (~84%) n'est donc **pas comparable** au score de 92% obtenu en semaine 2 via `polaris audit --config polaris-config.yaml --audit-path k8s/`, qui n'auditait que les 2 manifestes de ce projet avec des règles adaptées. Pour évaluer uniquement `todo-app`, filtrer par le menu **Namespaces** du dashboard plutôt que de lire le score global.
 
 ---
 

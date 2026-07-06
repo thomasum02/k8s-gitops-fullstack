@@ -105,19 +105,7 @@ Déployé en une seule replica (`controller.type=deployment`) — `loki.source.k
 
 ---
 
-## 3. Problèmes rencontrés
-
-| Problème | Cause | Correction |
-|---|---|---|
-| `You must provide a schema_config for Loki` | Chart Loki exige un schéma explicite | `--set loki.useTestSchema=true` (suffisant pour ce projet, pas de vrai besoin de rétention long terme) |
-| `4 Insufficient memory` sur `loki-chunks-cache` | Cache mémoire par défaut trop gourmand pour la capacité du cluster | `chunksCache.enabled=false` |
-| Pods `Evicted` en rafale (Grafana, kube-state-metrics, node-exporter, loki-canary) | Pic de pression mémoire pendant l'installation simultanée de plusieurs composants | Résolu tout seul après stabilisation ; nettoyage des pods évincés avec `kubectl delete pod --field-selector=status.phase=Failed` |
-| Datasources Grafana pas prises en compte au premier essai | Mauvais nom de conteneur sidecar utilisé pour vérifier les logs (le pod ciblé par le sélecteur était un des nombreux pods évincés, pas celui qui tournait réellement) | Cibler le pod effectivement `Running` |
-| `{namespace="todo-app"}` ne renvoie aucun log | La configuration Alloy simplifiée ne "relabel" pas les métadonnées Kubernetes (`__meta_kubernetes_namespace`) vers un label `namespace` exploitable | Requête adaptée au label réellement produit : `{instance=~"todo-app/.*"}` (format `namespace/nom-du-pod`) |
-
----
-
-## 4. Datasources Grafana
+## 3. Datasources Grafana
 
 Provisionnées automatiquement via un ConfigMap détecté par le sidecar Grafana (label `grafana_datasource: "1"`) :
 
@@ -171,7 +159,7 @@ spec:
 
 ---
 
-## 5. Vérification
+## 4. Vérification
 
 **Logs** (Grafana → Explore → Loki) :
 ```
@@ -189,7 +177,7 @@ todo_operations_total
 
 ---
 
-## 6. Accès web (Ingress)
+## 5. Accès web (Ingress)
 
 | Service | URL |
 |---|---|
@@ -199,7 +187,7 @@ Identifiants : `admin` / voir variable définie à l'installation (`grafana.admi
 
 ---
 
-## 7. Schéma d'architecture globale
+## 6. Schéma d'architecture globale
 
 ```mermaid
 flowchart LR

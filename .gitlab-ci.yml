@@ -60,7 +60,9 @@ build-frontend:
 
 update-manifests:
   stage: push
-  image: alpine/git:latest
+  image:
+    name: alpine/git:latest
+    entrypoint: [""]
   before_script:
     - git config --global user.email "ci-bot@indio.lan"
     - git config --global user.name "GitLab CI"

@@ -32,7 +32,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: todo-backend
-        image: gitlab.indio.lan:5050/indio/pj_kubernetes/todo-backend:8be43a47
+        image: gitlab.indio.lan:5050/indio/pj_kubernetes/todo-backend:18f0d9cc
         imagePullPolicy: Always
         ports:
         - containerPort: 3001

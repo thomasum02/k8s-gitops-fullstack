@@ -1,5 +1,3 @@
-// Empty default = relative requests (e.g. /api/todos), routed by the Ingress to the backend.
-// A hardcoded host here would break as soon as the app is accessed from a different node/domain.
 const API_URL = process.env.REACT_APP_API_URL || '';
 
 export const fetchTodos = async () => {

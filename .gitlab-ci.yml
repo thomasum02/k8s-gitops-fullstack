@@ -58,25 +58,6 @@ build-frontend:
     - docker build -t $CI_REGISTRY_IMAGE/todo-frontend:$CI_COMMIT_SHORT_SHA ./frontend
     - docker push $CI_REGISTRY_IMAGE/todo-frontend:$CI_COMMIT_SHORT_SHA
 
-update-manifests:
-  stage: push
-  image:
-    name: alpine/git:latest
-    entrypoint: [""]
-  before_script:
-    - git config --global user.email "ci-bot@indio.lan"
-    - git config --global user.name "GitLab CI"
-    - git remote set-url origin "https://tum_adm:${GIT_PUSH_TOKEN}@gitlab.indio.lan/indio/pj_kubernetes.git"
-  script:
-    # Keep the Git manifest in sync with the image actually built/pushed by this pipeline,
-    # so it stops drifting from what's really deployed (was stuck on a stale "v2" placeholder).
-    - 'sed -i -E "s#^(\s*)image: .*#\1image: ${CI_REGISTRY_IMAGE}/todo-backend:${CI_COMMIT_SHORT_SHA}#" k8s/backend/deployment.yaml'
-    - 'sed -i -E "s#^(\s*)image: .*#\1image: ${CI_REGISTRY_IMAGE}/todo-frontend:${CI_COMMIT_SHORT_SHA}#" k8s/frontend/deployment.yaml'
-    - git add k8s/backend/deployment.yaml k8s/frontend/deployment.yaml
-    - 'git diff --cached --quiet && echo "Nothing to commit" || (git commit -m "chore(k8s): bump image tags to ${CI_COMMIT_SHORT_SHA} [skip ci]" && git push origin HEAD:${CI_COMMIT_REF_NAME})'
-  only:
-    - thomas
-
 deploy:
   stage : deploy
   image:

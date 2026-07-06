@@ -4,7 +4,6 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci && npm cache clean --force && rm -rf /root/.npm
 COPY . .
-# Empty by default: baked into the CRA build, so keep it relative unless the CI passes a real backend host.
 ARG REACT_APP_API_URL=""
 ENV REACT_APP_API_URL=$REACT_APP_API_URL
 RUN npm run build

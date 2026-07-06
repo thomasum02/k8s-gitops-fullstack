@@ -192,6 +192,8 @@ spec:
 ```
 Accessible via `http://polaris-todo.local`.
 
+> **Note sur le score affiché** : ce dashboard audite **tout le cluster partagé** (13 namespaces, 31 contrôleurs — ArgoCD x2, cert-manager, Traefik, kube-system, la stack monitoring de la semaine 4, etc.), avec la config Polaris **par défaut** (sans exemptions). Le score global qui y apparaît (~84%) n'est donc **pas comparable** au score de 92% obtenu en semaine 2 via `polaris audit --config polaris-config.yaml --audit-path k8s/`, qui n'auditait que les 2 manifestes de ce projet avec des règles adaptées. Pour évaluer uniquement `todo-app`, filtrer par le menu **Namespaces** du dashboard plutôt que de lire le score global.
+
 ---
 
 ## Conclusion Semaine 3

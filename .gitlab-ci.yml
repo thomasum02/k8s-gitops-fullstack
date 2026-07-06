@@ -58,6 +58,14 @@ build-frontend:
     - docker build -t $CI_REGISTRY_IMAGE/todo-frontend:$CI_COMMIT_SHORT_SHA ./frontend
     - docker push $CI_REGISTRY_IMAGE/todo-frontend:$CI_COMMIT_SHORT_SHA
 
+polaris:
+  stage: security
+  image: quay.io/fairwinds/polaris:latest
+  script:
+    - polaris audit --config polaris-config.yaml --audit-path k8s/ --format=pretty --set-exit-code-on-danger
+  only:
+    - thomas
+
 deploy:
   stage : deploy
   image:

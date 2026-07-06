@@ -3,7 +3,7 @@ FROM node:20.19-alpine3.22 AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN apk update && apk upgrade --no-cache && \
-    npm ci && npm cache clean --force && rm -rf /root/.npm
+    npm ci --omit=dev && npm cache clean --force && rm -rf /root/.npm
 COPY src/ ./src/
 
 # stage-2-prod

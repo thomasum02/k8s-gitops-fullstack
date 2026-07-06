@@ -66,6 +66,7 @@ polaris:
     - polaris audit --config polaris-config.yaml --audit-path k8s/ --format=pretty --set-exit-code-on-danger
   only:
     - thomas
+    - main
 
 hadolint:
   stage: security
@@ -77,6 +78,7 @@ hadolint:
     - hadolint frontend/Dockerfile
   only:
     - thomas
+    - main
 
 trivy:
   stage: security
@@ -92,6 +94,7 @@ trivy:
     - trivy image --username $CI_REGISTRY_USER --password $CI_REGISTRY_PASSWORD --severity CRITICAL,HIGH --exit-code 1 $CI_REGISTRY_IMAGE/todo-frontend:$CI_COMMIT_SHORT_SHA
   only:
     - thomas
+    - main
 
 dockle:
   stage: security
@@ -107,6 +110,7 @@ dockle:
     - dockle --username $CI_REGISTRY_USER --password $CI_REGISTRY_PASSWORD $CI_REGISTRY_IMAGE/todo-frontend:$CI_COMMIT_SHORT_SHA
   only:
     - thomas
+    - main
 
 update-manifests:
   stage: push
@@ -127,3 +131,4 @@ update-manifests:
     - 'git diff --cached --quiet && echo "Nothing to commit" || (git commit -m "chore(k8s): bump image tags to ${CI_COMMIT_SHORT_SHA} [skip ci]" && git push origin HEAD:${CI_COMMIT_REF_NAME})'
   only:
     - thomas
+    - main

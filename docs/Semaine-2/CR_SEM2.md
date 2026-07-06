@@ -16,6 +16,8 @@ Déployer l'application Todo App sur le cluster K3s avec des manifests Kubernete
 | 6 pods Running (3 backend + 3 frontend) | ✅ Complet |
 | Ingress Traefik opérationnel | ✅ Complet |
 | Score Polaris 92/100 | ✅ Complet |
+| Pipeline GitLab CI/CD (test, build, deploy) | ✅ Complet |
+| Scans de sécurité automatisés (SAST, Secret Detection, Polaris, Hadolint, Trivy, Dockle) | ✅ Complet |
 
 ---
 
@@ -264,6 +266,52 @@ thomas@cp1:~/pj_kubernetes/k8s$ curl -H "Host: todo-app.local" http://10.160.2.9
 
 ---
 
+## 7. Pipeline GitLab CI/CD
+
+### Stages du pipeline
+```
+test → secret-detection → build → security → deploy
+```
+
+### Jobs
+
+| Job | Stage | Rôle |
+|---|---|---|
+| `test-backend` | test | Tests Jest du backend |
+| `sast` | test | Analyse statique du code (template GitLab) |
+| `secret_detection` | secret-detection | Recherche de secrets oubliés dans le code |
+| `build-backend` / `build-frontend` | build | Build + push des images Docker vers la registry |
+| `polaris` | security | Audit des manifests Kubernetes |
+| `hadolint` | security | Lint des Dockerfiles |
+| `trivy` | security | Scan de vulnérabilités CVE sur les images buildées |
+| `dockle` | security | Audit CIS des images Docker |
+| `deploy` | deploy | Déploiement sur le cluster K3s (`kubectl set image`) |
+
+### Migration vers la registry self-hosted
+
+Le projet a été migré de `registry.gitlab.com` (GitLab.com) vers `gitlab.indio.lan:5050` (GitLab self-hosted). Les images existantes (v1 à v6) ont été recopiées manuellement vers le nouveau registre avec `docker pull` / `docker tag` / `docker push`.
+
+### Problèmes rencontrés et corrigés
+
+| Problème | Cause | Correction |
+|---|---|---|
+| `Forbidden` sur `kubectl set image` | Le ServiceAccount `gitlab-ci` n'avait pas de droits sur le namespace `todo-app` | Ajout d'un `Role` + `RoleBinding` dans `todo-app` |
+| `ImagePullBackOff` | Registry privée, pas de credentials sur le cluster | Création d'un `imagePullSecret` + référencement dans les deployments |
+| `no such host: gitlab.indio.lan` | DNS interne non résolu sur certains nœuds | Entrée `/etc/hosts` ajoutée sur les 5 nœuds |
+| `certificate signed by unknown authority` | Certificat interne (Vault PKI) non approuvé sur certains nœuds | Distribution du certificat CA (`gitlab-chain.crt`) + `update-ca-certificates` sur les 5 nœuds |
+| Bouton "Add" du frontend ne fonctionnait pas | URL du backend codée en dur (`REACT_APP_API_URL`), inatteignable depuis le navigateur | Passage à une URL relative (`/api/todos`), routée par l'Ingress |
+| CVE HIGH (`form-data`) détectée par Trivy sur l'image backend | Le Dockerfile installait aussi les devDependencies (jest, supertest...) dans l'image de prod | `npm ci --omit=dev` dans le Dockerfile backend |
+
+### Résultat final
+
+Pipeline complet et vert (#156) :
+```
+test → secret-detection → build → security → deploy
+  ✅         ✅              ✅        ✅         ✅
+```
+
+---
+
 ## Conclusion Semaine 2
 
 L'infrastructure Kubernetes est complète et opérationnelle :
@@ -272,6 +320,8 @@ L'infrastructure Kubernetes est complète et opérationnelle :
 - **Ingress Traefik** pour le routage HTTP
 - **Score Polaris 92/100** — manifests sécurisés
 - **RollingUpdate** — déploiements sans downtime
+- **Pipeline GitLab CI/CD** complet (test, build, sécurité, déploiement)
+- **Scans de sécurité automatisés** à chaque pipeline (SAST, Secret Detection, Polaris, Hadolint, Trivy, Dockle)
 
 #La base est prête pour la Semaine 3 : GitOps (ArgoCD) + Monitoring LGTM.
 

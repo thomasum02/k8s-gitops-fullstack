@@ -109,6 +109,26 @@ dockle:
   only:
     - thomas
 
+update-manifests:
+  stage: push
+  image:
+    name: alpine/git:latest
+    entrypoint: [""]
+  before_script:
+    - apk add --no-cache ca-certificates
+    - cp "$GITLAB_CA_CERT" /usr/local/share/ca-certificates/gitlab-chain.crt
+    - update-ca-certificates
+    - git config --global user.email "ci-bot@indio.lan"
+    - git config --global user.name "GitLab CI"
+    - git remote set-url origin "https://tum_adm:${GIT_PUSH_TOKEN}@gitlab.indio.lan/indio/pj_kubernetes.git"
+  script:
+    - 'sed -i -E "s#^(\s*)image: .*#\1image: ${CI_REGISTRY_IMAGE}/todo-backend:${CI_COMMIT_SHORT_SHA}#" k8s/backend/deployment.yaml'
+    - 'sed -i -E "s#^(\s*)image: .*#\1image: ${CI_REGISTRY_IMAGE}/todo-frontend:${CI_COMMIT_SHORT_SHA}#" k8s/frontend/deployment.yaml'
+    - git add k8s/backend/deployment.yaml k8s/frontend/deployment.yaml
+    - 'git diff --cached --quiet && echo "Nothing to commit" || (git commit -m "chore(k8s): bump image tags to ${CI_COMMIT_SHORT_SHA} [skip ci]" && git push origin HEAD:${CI_COMMIT_REF_NAME})'
+  only:
+    - thomas
+
 deploy:
   stage : deploy
   image:

@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: todo-frontend-config
+  namespace: todo-app
+  labels:
+    app: todo-frontend
+data:
+  REACT_APP_API_URL: "http://todo-backend-svc:3001"

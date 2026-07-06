@@ -1,0 +1,129 @@
+stages:
+- test
+- secret-detection
+- build
+- security
+- push
+
+variables:
+  SECRET_DETECTION_ENABLED: 'true'
+  SAST_EXCLUDED_PATHS: "node_modules, dist, build, fichiersMD, coverage"
+
+include:
+- template: Security/SAST.gitlab-ci.yml
+- template: Security/Secret-Detection.gitlab-ci.yml
+
+test-backend:
+  stage: test
+  image: node:20-alpine
+  cache:
+    key: backend-deps
+    paths:
+      - backend/node_modules/
+  script:
+    - cd backend
+    - npm ci --prefer-offline --no-audit --no-fund
+    - npm test
+
+sast:
+  stage: test
+
+secret_detection:
+  stage: secret-detection
+
+build-backend:
+  stage: build
+  image: docker:24
+  services:
+    - docker:24-dind
+  variables:
+    DOCKER_TLS_CERTDIR: ""
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE/todo-backend:$CI_COMMIT_SHORT_SHA ./backend
+    - docker push $CI_REGISTRY_IMAGE/todo-backend:$CI_COMMIT_SHORT_SHA
+
+build-frontend:
+  stage: build
+  image: docker:24
+  services:
+    - docker:24-dind
+  variables:
+    DOCKER_TLS_CERTDIR: ""
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE/todo-frontend:$CI_COMMIT_SHORT_SHA ./frontend
+    - docker push $CI_REGISTRY_IMAGE/todo-frontend:$CI_COMMIT_SHORT_SHA
+
+polaris:
+  stage: security
+  image:
+    name: quay.io/fairwinds/polaris:latest
+    entrypoint: [""]
+  script:
+    - polaris audit --config polaris-config.yaml --audit-path k8s/ --format=pretty --set-exit-code-on-danger
+  only:
+    - thomas
+
+hadolint:
+  stage: security
+  image:
+    name: hadolint/hadolint:latest-alpine
+    entrypoint: [""]
+  script:
+    - hadolint backend/Dockerfile
+    - hadolint frontend/Dockerfile
+  only:
+    - thomas
+
+trivy:
+  stage: security
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
+  before_script:
+    - apk add --no-cache ca-certificates
+    - cp "$GITLAB_CA_CERT" /usr/local/share/ca-certificates/gitlab-chain.crt
+    - update-ca-certificates
+  script:
+    - trivy image --username $CI_REGISTRY_USER --password $CI_REGISTRY_PASSWORD --severity CRITICAL,HIGH --exit-code 1 $CI_REGISTRY_IMAGE/todo-backend:$CI_COMMIT_SHORT_SHA
+    - trivy image --username $CI_REGISTRY_USER --password $CI_REGISTRY_PASSWORD --severity CRITICAL,HIGH --exit-code 1 $CI_REGISTRY_IMAGE/todo-frontend:$CI_COMMIT_SHORT_SHA
+  only:
+    - thomas
+
+dockle:
+  stage: security
+  image:
+    name: goodwithtech/dockle:latest
+    entrypoint: [""]
+  before_script:
+    - apk add --no-cache ca-certificates
+    - cp "$GITLAB_CA_CERT" /usr/local/share/ca-certificates/gitlab-chain.crt
+    - update-ca-certificates
+  script:
+    - dockle --username $CI_REGISTRY_USER --password $CI_REGISTRY_PASSWORD $CI_REGISTRY_IMAGE/todo-backend:$CI_COMMIT_SHORT_SHA
+    - dockle --username $CI_REGISTRY_USER --password $CI_REGISTRY_PASSWORD $CI_REGISTRY_IMAGE/todo-frontend:$CI_COMMIT_SHORT_SHA
+  only:
+    - thomas
+
+update-manifests:
+  stage: push
+  image:
+    name: alpine/git:latest
+    entrypoint: [""]
+  before_script:
+    - apk add --no-cache ca-certificates
+    - cp "$GITLAB_CA_CERT" /usr/local/share/ca-certificates/gitlab-chain.crt
+    - update-ca-certificates
+    - git config --global user.email "ci-bot@indio.lan"
+    - git config --global user.name "GitLab CI"
+    - git remote set-url origin "https://tum_adm:${GIT_PUSH_TOKEN}@gitlab.indio.lan/indio/pj_kubernetes.git"
+  script:
+    - 'sed -i -E "s#^(\s*)image: .*#\1image: ${CI_REGISTRY_IMAGE}/todo-backend:${CI_COMMIT_SHORT_SHA}#" k8s/backend/deployment.yaml'
+    - 'sed -i -E "s#^(\s*)image: .*#\1image: ${CI_REGISTRY_IMAGE}/todo-frontend:${CI_COMMIT_SHORT_SHA}#" k8s/frontend/deployment.yaml'
+    - git add k8s/backend/deployment.yaml k8s/frontend/deployment.yaml
+    - 'git diff --cached --quiet && echo "Nothing to commit" || (git commit -m "chore(k8s): bump image tags to ${CI_COMMIT_SHORT_SHA} [skip ci]" && git push origin HEAD:${CI_COMMIT_REF_NAME})'
+  only:
+    - thomas

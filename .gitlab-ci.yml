@@ -19,7 +19,7 @@ test-backend:
       - backend/node_modules/
   script:
     - cd backend
-    - npm ci
+    - npm install
     - npm test
   only:
     - amine

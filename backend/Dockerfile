@@ -11,7 +11,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Installer uniquement les dépendances de production
-RUN npm ci --only=production && npm cache clean --force
+RUN npm install --only=production && npm cache clean --force
 
 # Copier le code source
 COPY src/ ./src/

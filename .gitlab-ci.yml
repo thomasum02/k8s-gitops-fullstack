@@ -66,8 +66,8 @@ deploy:
     - git config --global user.name "GitLab CI - amine"
     - git remote set-url origin "https://oauth2:${GIT_PUSH_TOKEN}@gitlab.com/esgi3381238/pj_kubernetes.git"
   script:
-    - sed -i "s|image: .*backend-amine:.*|image: $CI_REGISTRY_IMAGE/backend-amine:$CI_COMMIT_SHORT_SHA|" k8s/backend/deployment.yaml
-    - sed -i "s|image: .*frontend-amine:.*|image: $CI_REGISTRY_IMAGE/frontend-amine:$CI_COMMIT_SHORT_SHA|" k8s/frontend/deployment.yaml
+    - sed -i "s|backend-amine:[^ ]*|backend-amine:$CI_COMMIT_SHORT_SHA|" k8s/backend/deployment.yaml
+    - sed -i "s|frontend-amine:[^ ]*|frontend-amine:$CI_COMMIT_SHORT_SHA|" k8s/frontend/deployment.yaml
     - git add k8s/backend/deployment.yaml k8s/frontend/deployment.yaml
     - git diff --cached --quiet && echo "rien a committer" || (git commit -m "update image tags to $CI_COMMIT_SHORT_SHA [skip ci]" && git push origin HEAD:amine)
   only:

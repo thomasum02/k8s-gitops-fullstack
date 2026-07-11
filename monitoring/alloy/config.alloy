@@ -11,7 +11,7 @@ loki.source.kubernetes "pods" {
 
 loki.write "default" {
   endpoint {
-    url = "http://loki-gateway.monitoring-amine.svc.cluster.local/loki/api/v1/push"
+    url = "http://loki-amine-gateway.monitoring-amine.svc.cluster.local/loki/api/v1/push"
     headers = {
       "X-Scope-OrgID" = "todo-app-amine",
     }

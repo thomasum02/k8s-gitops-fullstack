@@ -19,7 +19,7 @@ spec:
         - name: gitlab-registry-cred-amine
       containers:
         - name: backend-amine
-          image: registry.gitlab.com/esgi3381238/pj_kubernetes/backend-amine:ef40c132
+          image: registry.gitlab.com/esgi3381238/pj_kubernetes/backend-amine:92bf725c
           ports:
             - containerPort: 3001
           envFrom:

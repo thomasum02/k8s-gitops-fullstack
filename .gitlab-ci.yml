@@ -60,7 +60,9 @@ build-frontend:
 
 deploy:
   stage: deploy
-  image: alpine/git:latest
+  image:
+    name: alpine/git:latest
+    entrypoint: [""]
   before_script:
     - git config --global user.email "ci-amine@todo-app.local"
     - git config --global user.name "GitLab CI - amine"

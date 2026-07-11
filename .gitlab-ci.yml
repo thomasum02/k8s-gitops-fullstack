@@ -20,7 +20,7 @@ test-backend:
   script:
     - cd backend
     - npm install
-    - npm test
+    - npm test -- --forceExit
   only:
     - amine
 

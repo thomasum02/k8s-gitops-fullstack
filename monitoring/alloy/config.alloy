@@ -1,9 +1,7 @@
-// Découverte des pods Kubernetes
 discovery.kubernetes "pods" {
   role = "pod"
 }
 
-// Collecte des logs depuis les pods et envoi vers Loki
 loki.source.kubernetes "pods" {
   targets    = discovery.kubernetes.pods.targets
   forward_to = [loki.write.default.receiver]
@@ -15,42 +13,5 @@ loki.write "default" {
     headers = {
       "X-Scope-OrgID" = "todo-app-amine",
     }
-  }
-}
-
-// Découverte des services pour scraping Prometheus
-discovery.kubernetes "services" {
-  role = "service"
-}
-
-// Scraping métriques Prometheus (endpoint /metrics du backend)
-prometheus.scrape "backend" {
-  targets = discovery.relabel.backend_metrics.output
-  forward_to = [prometheus.remote_write.mimir.receiver]
-  scrape_interval = "30s"
-}
-
-discovery.relabel "backend_metrics" {
-  targets = discovery.kubernetes.services.targets
-  rule {
-    source_labels = ["__meta_kubernetes_namespace"]
-    regex         = "todo-app-amine"
-    action        = "keep"
-  }
-  rule {
-    source_labels = ["__meta_kubernetes_service_name"]
-    regex         = "backend-svc-amine"
-    action        = "keep"
-  }
-  rule {
-    replacement  = "/metrics"
-    target_label = "__metrics_path__"
-  }
-}
-
-// Envoi des métriques vers Prometheus/Mimir
-prometheus.remote_write "mimir" {
-  endpoint {
-    url = "http://kube-prometheus-stack-prometheus.monitoring-amine.svc.cluster.local:9090/api/v1/write"
   }
 }

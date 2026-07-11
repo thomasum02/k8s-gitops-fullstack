@@ -155,7 +155,7 @@ spec:
               }
               loki.write "default" {
                 endpoint {
-                  url = "http://loki-gateway.monitoring-amine.svc.cluster.local/loki/api/v1/push"
+                  url = "http://loki-amine-gateway.monitoring-amine.svc.cluster.local/loki/api/v1/push"
                   headers = {
                     "X-Scope-OrgID" = "todo-app-amine",
                   }
@@ -200,15 +200,15 @@ data:
   datasources.yaml: |
     apiVersion: 1
     datasources:
-      - name: Loki
+      - name: Loki-amine
         type: loki
         access: proxy
-        url: http://loki-gateway.monitoring-amine.svc.cluster.local
+        url: http://loki-amine-gateway.monitoring-amine.svc.cluster.local
         jsonData:
           httpHeaderName1: "X-Scope-OrgID"
         secureJsonData:
           httpHeaderValue1: "todo-app-amine"
-      - name: Tempo
+      - name: Tempo-amine
         type: tempo
         access: proxy
-        url: http://tempo.monitoring-amine.svc.cluster.local:3200
+        url: http://tempo-amine.monitoring-amine.svc.cluster.local:3100

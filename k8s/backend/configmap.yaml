@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config-amine
+  namespace: todo-app-amine
+  labels:
+    app: backend-amine
+data:
+  NODE_ENV: "production"
+  PORT: "3001"

@@ -1,0 +1,214 @@
+---
+# Namespace dédié pour le monitoring (isolé du reste du cluster)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring-amine
+
+---
+# Prometheus + Grafana via ArgoCD Application (kube-prometheus-stack)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-amine
+  namespace: argocd-amine
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: "*"
+    helm:
+      values: |
+        grafana:
+          adminPassword: "TodoApp-amine-2026"
+          ingress:
+            enabled: true
+            hosts:
+              - grafana-amine.local
+        prometheus:
+          prometheusSpec:
+            retention: 3d
+            resources:
+              requests:
+                cpu: 100m
+                memory: 256Mi
+        alertmanager:
+          alertmanagerSpec:
+            resources:
+              requests:
+                cpu: 25m
+                memory: 64Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring-amine
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+# Loki — agrégation de logs
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki-amine
+  namespace: argocd-amine
+spec:
+  project: default
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: loki
+    targetRevision: "*"
+    helm:
+      values: |
+        deploymentMode: SingleBinary
+        loki:
+          commonConfig:
+            replication_factor: 1
+          storage:
+            type: filesystem
+          useTestSchema: true
+        singleBinary:
+          replicas: 1
+        read:
+          replicas: 0
+        write:
+          replicas: 0
+        backend:
+          replicas: 0
+        chunksCache:
+          enabled: false
+        monitoring:
+          selfMonitoring:
+            enabled: false
+          serviceMonitor:
+            enabled: false
+        test:
+          enabled: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring-amine
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+---
+# Tempo — traces distribuées
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tempo-amine
+  namespace: argocd-amine
+spec:
+  project: default
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: tempo
+    targetRevision: "*"
+    helm:
+      values: |
+        tempo:
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring-amine
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+---
+# Alloy — agent de collecte logs + métriques
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: alloy-amine
+  namespace: argocd-amine
+spec:
+  project: default
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: alloy
+    targetRevision: "*"
+    helm:
+      values: |
+        controller:
+          type: deployment
+          replicas: 1
+        alloy:
+          configMap:
+            create: true
+            content: |
+              discovery.kubernetes "pods" {
+                role = "pod"
+              }
+              loki.source.kubernetes "pods" {
+                targets    = discovery.kubernetes.pods.targets
+                forward_to = [loki.write.default.receiver]
+              }
+              loki.write "default" {
+                endpoint {
+                  url = "http://loki-gateway.monitoring-amine.svc.cluster.local/loki/api/v1/push"
+                  headers = {
+                    "X-Scope-OrgID" = "todo-app-amine",
+                  }
+                }
+              }
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring-amine
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+---
+# ServiceMonitor — scraping des métriques du backend amine
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: backend-amine-metrics
+  namespace: todo-app-amine
+  labels:
+    release: kube-prometheus-amine
+spec:
+  selector:
+    matchLabels:
+      app: backend-amine
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+
+---
+# ConfigMap datasources Grafana (Loki + Tempo)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources-amine
+  namespace: monitoring-amine
+  labels:
+    grafana_datasource: "1"
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Loki
+        type: loki
+        access: proxy
+        url: http://loki-gateway.monitoring-amine.svc.cluster.local
+        jsonData:
+          httpHeaderName1: "X-Scope-OrgID"
+        secureJsonData:
+          httpHeaderValue1: "todo-app-amine"
+      - name: Tempo
+        type: tempo
+        access: proxy
+        url: http://tempo.monitoring-amine.svc.cluster.local:3200

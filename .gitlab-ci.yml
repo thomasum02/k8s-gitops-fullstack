@@ -1,19 +1,74 @@
-# You can override the included template(s) by including variable overrides
-# SAST customization: https://docs.gitlab.com/user/application_security/sast/#available-cicd-variables
-# Secret Detection customization: https://docs.gitlab.com/user/application_security/secret_detection/pipeline/configure/
-# Dependency Scanning customization: https://docs.gitlab.com/user/application_security/dependency_scanning/dependency_scanning_sbom/#customizing-analyzer-behavior
-# Container Scanning customization: https://docs.gitlab.com/user/application_security/container_scanning/#customizing-analyzer-behavior
-# Note that environment variables can be set in several places
-# See https://docs.gitlab.com/ci/variables/#cicd-variable-precedence
 stages:
-- test
-- secret-detection
-sast:
-  stage: test
-include:
-- template: Security/SAST.gitlab-ci.yml
-- template: Security/Secret-Detection.gitlab-ci.yml
+  - test
+  - build
+  - deploy
+
 variables:
-  SECRET_DETECTION_ENABLED: 'true'
-secret_detection:
-  stage: secret-detection
+  DOCKER_TLS_CERTDIR: ""
+
+# -------------------------------------------------------------------
+# STAGE TEST
+# -------------------------------------------------------------------
+
+test-backend:
+  stage: test
+  image: node:18-alpine
+  cache:
+    key: backend-deps-amine
+    paths:
+      - backend/node_modules/
+  script:
+    - cd backend
+    - npm ci
+    - npm test
+  only:
+    - amine
+
+# -------------------------------------------------------------------
+# STAGE BUILD
+# -------------------------------------------------------------------
+
+build-backend:
+  stage: build
+  image: docker:24
+  services:
+    - docker:24-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE/backend-amine:$CI_COMMIT_SHORT_SHA ./backend
+    - docker push $CI_REGISTRY_IMAGE/backend-amine:$CI_COMMIT_SHORT_SHA
+  only:
+    - amine
+
+build-frontend:
+  stage: build
+  image: docker:24
+  services:
+    - docker:24-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE/frontend-amine:$CI_COMMIT_SHORT_SHA ./frontend
+    - docker push $CI_REGISTRY_IMAGE/frontend-amine:$CI_COMMIT_SHORT_SHA
+  only:
+    - amine
+
+# -------------------------------------------------------------------
+# STAGE DEPLOY — mise a jour des manifests, ArgoCD prend le relai
+# -------------------------------------------------------------------
+
+deploy:
+  stage: deploy
+  image: alpine/git:latest
+  before_script:
+    - git config --global user.email "ci-amine@todo-app.local"
+    - git config --global user.name "GitLab CI - amine"
+    - git remote set-url origin "https://oauth2:${GIT_PUSH_TOKEN}@gitlab.com/esgi3381238/pj_kubernetes.git"
+  script:
+    - sed -i "s|image: .*backend-amine:.*|image: $CI_REGISTRY_IMAGE/backend-amine:$CI_COMMIT_SHORT_SHA|" k8s/backend/deployment.yaml
+    - sed -i "s|image: .*frontend-amine:.*|image: $CI_REGISTRY_IMAGE/frontend-amine:$CI_COMMIT_SHORT_SHA|" k8s/frontend/deployment.yaml
+    - git add k8s/backend/deployment.yaml k8s/frontend/deployment.yaml
+    - git diff --cached --quiet && echo "rien a committer" || (git commit -m "update image tags to $CI_COMMIT_SHORT_SHA [skip ci]" && git push origin HEAD:amine)
+  only:
+    - amine

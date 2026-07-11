@@ -1,0 +1,15 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: todo-app-amine
+  namespace: argocd-amine
+spec:
+  description: Projet Todo App - amine
+  sourceRepos:
+    - https://gitlab.com/esgi3381238/pj_kubernetes.git
+  destinations:
+    - namespace: todo-app-amine
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace

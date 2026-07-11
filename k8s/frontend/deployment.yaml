@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-amine
+  namespace: todo-app-amine
+  labels:
+    app: frontend-amine
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend-amine
+  template:
+    metadata:
+      labels:
+        app: frontend-amine
+    spec:
+      imagePullSecrets:
+        - name: gitlab-registry-cred-amine
+      containers:
+        - name: frontend-amine
+          image: registry.gitlab.com/esgi3381238/pj_kubernetes/frontend-amine:latest
+          ports:
+            - containerPort: 80
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"

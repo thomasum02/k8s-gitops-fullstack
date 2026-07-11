@@ -1,0 +1,115 @@
+{
+  "title": "Todo App - amine",
+  "uid": "todo-app-amine",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Requêtes HTTP (total)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus" },
+          "expr": "rate(http_requests_total{namespace=\"todo-app-amine\"}[5m])",
+          "legendFormat": "{{method}} {{route}} {{status}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": { "mode": "palette-classic" }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Durée des requêtes HTTP (p95)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus" },
+          "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{namespace=\"todo-app-amine\"}[5m]))",
+          "legendFormat": "p95 {{method}} {{route}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": { "mode": "palette-classic" }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Opérations Todo (total)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus" },
+          "expr": "rate(todo_operations_total{namespace=\"todo-app-amine\"}[5m])",
+          "legendFormat": "{{operation}} - {{status}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "color": { "mode": "palette-classic" }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Total requêtes HTTP",
+      "type": "stat",
+      "gridPos": { "x": 12, "y": 8, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus" },
+          "expr": "sum(http_requests_total{namespace=\"todo-app-amine\"})",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short" }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Total opérations Todo",
+      "type": "stat",
+      "gridPos": { "x": 18, "y": 8, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus" },
+          "expr": "sum(todo_operations_total{namespace=\"todo-app-amine\"})",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short" }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Logs - todo-app-amine",
+      "type": "logs",
+      "gridPos": { "x": 0, "y": 16, "w": 24, "h": 8 },
+      "targets": [
+        {
+          "datasource": { "type": "loki" },
+          "expr": "{namespace=\"todo-app-amine\"}",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

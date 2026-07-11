@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: todo-app-amine
+  namespace: argocd-amine
+spec:
+  project: todo-app-amine
+  source:
+    repoURL: https://gitlab.com/esgi3381238/pj_kubernetes.git
+    targetRevision: amine
+    path: k8s
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: todo-app-amine
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

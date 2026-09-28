@@ -211,7 +211,7 @@ flowchart LR
     Utilisateur["Utilisateur<br/>http://todo-app.local"] --> Ingress["Ingress Traefik<br/>10.160.2.90-94 :80"]
     Ingress --> Frontend
     Ingress --> Backend
-    Admin["Toi - admin"] --> ArgoCD
+    Admin["Admin"] --> ArgoCD
     Admin --> Grafana
 ```
 

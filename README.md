@@ -1,102 +1,149 @@
-# PJ_KUBERNETES
+# Déploiement GitOps d'une application full-stack sur Kubernetes
 
-## Accès aux services
+Chaîne DevOps complète pour une application **Todo (React + Node.js/Express)** : conteneurisation durcie, pipeline GitLab CI/CD avec scans de sécurité, déploiement GitOps via **ArgoCD** et observabilité avec la stack **LGTM + Alloy**, sur un cluster **K3s multi-nœuds**.
 
-| Service | URL | Identifiants |
+> Projet réalisé dans le cadre de ma formation (ESGI), sur 4 semaines. Le code applicatif (Todo App) était fourni ; les Dockerfiles, manifests Kubernetes, pipeline CI/CD, configuration GitOps et monitoring sont mon travail.
+
+---
+
+## 🔄 Avant / Après
+
+**Avant :** build des images en local, `docker push` manuel, `kubectl apply` à la main, aucune visibilité sur l'état de l'application.
+**Après :** un `git push` suffit. Le pipeline teste, construit, scanne et met à jour le tag d'image dans Git ; ArgoCD synchronise le cluster automatiquement ; logs et métriques remontent dans Grafana.
+
+| Domaine | Demandé par l'énoncé | Réalisé |
 |---|---|---|
-| Application Todo | http://todo-app.local | - |
-| ArgoCD | http://argocd-todo.local | admin / voir secret `argocd-initial-admin-secret` |
-| Grafana | http://grafana-todo.local | admin / voir variable `grafana.adminPassword` |
-| Polaris (dashboard) | http://polaris-todo.local | - |
+| **Cluster** | Minikube (mono-nœud) | Cluster **K3s** multi-nœuds (2 control-plane + 3 workers), namespaces dédiés par brique |
+| **Dockerfiles** | Templates à compléter | Multi-stage Alpine, utilisateur non-root, npm/npx retirés de l'image finale, `HEALTHCHECK` |
+| **Manifests K8s** | Exemples fournis | 3 replicas, RollingUpdate sans interruption (`maxUnavailable: 0`), probes, requests/limits, durcissement (non-root, filesystem read-only, `drop: ALL`, seccomp) → **score Polaris 92/100** |
+| **CI/CD** | Pipeline GitLab | 5 stages : tests Jest, SAST, détection de secrets, build/push registry, scans **Hadolint / Trivy / Dockle / Polaris**, mise à jour automatique du tag d'image |
+| **GitOps** | ArgoCD ou FluxCD | Instance **ArgoCD** dédiée, sync automatique avec `prune` + `selfHeal` : le CI ne touche plus jamais au cluster |
+| **Monitoring** | Stack LGTM + Alloy | Prometheus (`kube-prometheus-stack`) + `ServiceMonitor` pour les métriques applicatives, Loki alimenté par Alloy, datasources Grafana provisionnées automatiquement |
 
-> Ces URLs nécessitent une entrée dans le fichier hosts local pointant vers une IP de nœud du cluster (ex: `10.160.2.90 todo-app.local`).
+---
 
-## Getting started
+## 🏗️ Architecture
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+```mermaid
+flowchart LR
+    Dev([Développeur]) -->|git push| Git["GitLab<br/>repo + registry"]
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+    subgraph CI["Pipeline GitLab CI/CD"]
+        T["Tests Jest<br/>SAST · Secret detection"] --> B["Build & push<br/>images Docker"]
+        B --> S["Scans sécurité<br/>Hadolint · Trivy · Dockle · Polaris"]
+        S --> U["Mise à jour du tag<br/>dans les manifests"]
+    end
 
-## Add your files
+    Git --> CI
+    U -->|commit| Git
 
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+    subgraph K3S["Cluster K3s"]
+        subgraph NS1["argocd-todo"]
+            ArgoCD["ArgoCD<br/>auto-sync · selfHeal"]
+        end
+        subgraph NS2["todo-app"]
+            Ingress["Ingress Traefik"]
+            Frontend["Frontend React/Nginx<br/>3 replicas"]
+            Backend["Backend Node.js<br/>3 replicas"]
+        end
+        subgraph NS3["monitoring-todo"]
+            Alloy["Alloy"]
+            Loki["Loki"]
+            Prometheus["Prometheus"]
+            Tempo["Tempo"]
+            Grafana["Grafana"]
+        end
+    end
+
+    Git -->|surveille le repo| ArgoCD
+    ArgoCD -->|déploie| Backend
+    ArgoCD --> Frontend
+
+    User([Utilisateur]) --> Ingress
+    Ingress -->|/| Frontend
+    Ingress -->|/api| Backend
+
+    Frontend -.->|logs| Alloy
+    Backend -.->|logs| Alloy
+    Alloy --> Loki
+    Backend -.->|/metrics| Prometheus
+    Loki --> Grafana
+    Prometheus --> Grafana
+    Tempo -.->|non instrumenté| Grafana
+```
+
+---
+
+## 🛠️ Stack technique
+
+| Catégorie | Outils |
+|---|---|
+| Application | React 18, Node.js 20, Express, Jest |
+| Conteneurs | Docker (multi-stage, Alpine), Nginx |
+| Orchestration | Kubernetes (K3s), Ingress Traefik |
+| CI/CD | GitLab CI, GitLab Container Registry |
+| Sécurité | GitLab SAST & Secret Detection, Hadolint, Trivy, Dockle, Polaris |
+| GitOps | ArgoCD |
+| Observabilité | Grafana, Prometheus, Loki, Tempo, Alloy, Helm |
+
+---
+
+## ⚙️ Pipeline CI/CD
 
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/esgi3381238/pj_kubernetes.git
-git branch -M main
-git push -uf origin main
+test → secret-detection → build → security → push
 ```
 
-## Integrate with your tools
+| Job | Rôle |
+|---|---|
+| `test-backend` | Tests unitaires Jest |
+| `sast` / `secret_detection` | Analyse statique du code et recherche de secrets (templates GitLab) |
+| `build-backend` / `build-frontend` | Build et push des images, taguées avec le SHA du commit |
+| `hadolint` | Lint des Dockerfiles |
+| `trivy` | Scan de CVE : le pipeline échoue sur toute vulnérabilité HIGH ou CRITICAL |
+| `dockle` | Audit CIS des images |
+| `polaris` | Audit des bonnes pratiques des manifests Kubernetes |
+| `update-manifests` | Met à jour le tag d'image dans `k8s/` et commit → déclenche la synchro ArgoCD |
 
-* [Set up project integrations](https://gitlab.com/esgi3381238/pj_kubernetes/-/settings/integrations)
+> Le pipeline a été conçu pour GitLab CI (`.gitlab-ci.yml`) ; il ne s'exécute pas sur GitHub.
 
-## Collaborate with your team
+---
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+## 🔐 Durcissement
 
-## Test and Deploy
+- **Images** : multi-stage, base Alpine, utilisateur non-root (UID fixe), outils de build absents de l'image finale
+- **Pods** : `runAsNonRoot`, `readOnlyRootFilesystem`, `allowPrivilegeEscalation: false`, `capabilities.drop: ALL`, `seccompProfile: RuntimeDefault`, `automountServiceAccountToken: false`
+- **Ressources** : requests et limits CPU/mémoire sur chaque conteneur
+- **Contrôles automatiques** à chaque pipeline : SAST, détection de secrets, Trivy, Dockle, Hadolint, Polaris
 
-Use the built-in continuous integration in GitLab.
+---
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+## 📊 Observabilité
 
-***
+- **Logs** : Alloy découvre les pods via l'API Kubernetes et envoie leurs logs à Loki (multi-tenant)
+- **Métriques** : le backend expose `/metrics` (`prom-client`), scrapé par Prometheus via un `ServiceMonitor` (`http_requests_total`, `http_request_duration_seconds`, `todo_operations_total`)
+- **Grafana** : datasources Loki, Prometheus et Tempo provisionnées automatiquement par ConfigMap
 
-# Editing this README
+---
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+## 🚧 Limites et pistes d'amélioration
 
-## Suggestions for a good README
+- **Traces** : Tempo est déployé et branché à Grafana, mais l'application n'est pas encore instrumentée avec OpenTelemetry. Prochaine étape : SDK OpenTelemetry côté backend, export OTLP vers Tempo.
+- **Réseau et disponibilité** : ajouter `NetworkPolicy`, `PodDisruptionBudget` et `topologySpreadConstraints` (warnings Polaris restants).
+- **TLS** sur l'Ingress (cert-manager).
+- **Secrets** : chiffrer les secrets dans Git (Sealed Secrets ou SOPS).
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+---
 
-## Name
-Choose a self-explaining name for your project.
+## 📁 Structure du dépôt
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+```
+├── backend/            # API Express + tests Jest + Dockerfile
+├── frontend/           # React + config Nginx + Dockerfile
+├── k8s/                # Manifests (Deployments, Services, ConfigMaps, Ingress)
+├── docs/               # Comptes rendus détaillés, semaine par semaine
+├── .gitlab-ci.yml      # Pipeline CI/CD
+└── polaris-config.yaml # Règles d'audit des manifests
+```
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+📖 Documentation détaillée : [Semaine 1 — Dockerfiles](docs/Semaine-1/CR_SEM1.md) · [Semaine 2 — Kubernetes & CI/CD](docs/Semaine-2/CR_SEM2.md) · [Semaine 3 — GitOps](docs/Semaine-3/CR_SEM3.md) · [Semaine 4 — Monitoring](docs/Semaine-4/CR_SEM4.md)

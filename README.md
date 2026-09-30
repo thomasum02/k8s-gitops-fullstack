@@ -22,6 +22,21 @@ Chaîne DevOps complète pour une application **Todo (React + Node.js/Express)**
 
 ---
 
+## 📁 Structure du dépôt
+
+```
+├── backend/            # API Express + tests Jest + Dockerfile
+├── frontend/           # React + config Nginx + Dockerfile
+├── k8s/                # Manifests (Deployments, Services, ConfigMaps, Ingress)
+├── docs/               # Comptes rendus détaillés, semaine par semaine
+├── .gitlab-ci.yml      # Pipeline CI/CD
+└── polaris-config.yaml # Règles d'audit des manifests
+```
+
+📖 Documentation détaillée : [Semaine 1 — Dockerfiles](docs/Semaine-1/CR_SEM1.md) · [Semaine 2 — Kubernetes & CI/CD](docs/Semaine-2/CR_SEM2.md) · [Semaine 3 — GitOps](docs/Semaine-3/CR_SEM3.md) · [Semaine 4 — Monitoring](docs/Semaine-4/CR_SEM4.md)
+
+---
+
 ## 🏗️ Architecture
 
 ```mermaid
@@ -132,18 +147,3 @@ test → secret-detection → build → security → push
 - **Réseau et disponibilité** : ajouter `NetworkPolicy`, `PodDisruptionBudget` et `topologySpreadConstraints` (warnings Polaris restants).
 - **TLS** sur l'Ingress (cert-manager).
 - **Secrets** : chiffrer les secrets dans Git (Sealed Secrets ou SOPS).
-
----
-
-## 📁 Structure du dépôt
-
-```
-├── backend/            # API Express + tests Jest + Dockerfile
-├── frontend/           # React + config Nginx + Dockerfile
-├── k8s/                # Manifests (Deployments, Services, ConfigMaps, Ingress)
-├── docs/               # Comptes rendus détaillés, semaine par semaine
-├── .gitlab-ci.yml      # Pipeline CI/CD
-└── polaris-config.yaml # Règles d'audit des manifests
-```
-
-📖 Documentation détaillée : [Semaine 1 — Dockerfiles](docs/Semaine-1/CR_SEM1.md) · [Semaine 2 — Kubernetes & CI/CD](docs/Semaine-2/CR_SEM2.md) · [Semaine 3 — GitOps](docs/Semaine-3/CR_SEM3.md) · [Semaine 4 — Monitoring](docs/Semaine-4/CR_SEM4.md)

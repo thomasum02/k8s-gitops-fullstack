@@ -42,7 +42,7 @@ kubectl create namespace monitoring-todo
 ```bash
 helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
   --namespace monitoring-todo \
-  --set grafana.adminPassword='TodoApp2026!' \
+  --set grafana.adminPassword= \
   --set prometheus.prometheusSpec.retention=3d \
   --set prometheus.prometheusSpec.resources.requests.cpu=100m \
   --set prometheus.prometheusSpec.resources.requests.memory=256Mi \
